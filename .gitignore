@@ -1,0 +1,11 @@
+# Mac OSX
+*.DS_Store
+
+# ides
+.idea/
+.vagrant
+.vscode
+*.iml
+
+*.swp
+vendor/
