@@ -68,13 +68,32 @@ func (geoPoint *Coordinate) CircleToPolygon(radius float64, segments int) (*GeoS
 		Type: polygon,
 	}
 
-	var coordinates [][]float64
+	coordinates := make([][]float64, segments)
+
+	var concurrent = 100 // limit number of go routines to not put too much on heap
+	var semaphoreChan = make(chan struct{}, concurrent)
+
+	var wg sync.WaitGroup
 
 	for i := 0; i < segments; i++ {
-		segment := (twoPi * float64(-i)) / float64(segments)
-		coordinate := generateCoordinate(*geoPoint, radius, segment)
-		coordinates = append(coordinates, coordinate)
+
+		semaphoreChan <- struct{}{}
+
+		wg.Add(1)
+
+		go func(i int) {
+			defer func() {
+				<-semaphoreChan // read to release a slot
+				wg.Done()
+			}()
+
+			sector := (twoPi * float64(-i)) / float64(segments)
+			coordinate := generateCoordinate(*geoPoint, radius, sector)
+			coordinates[i] = coordinate
+		}(i)
 	}
+
+	wg.Wait()
 
 	// Push first coordinate to be last coordinate to complete polygon circle
 	coordinates = append(coordinates, coordinates[0])
@@ -110,7 +129,7 @@ func toDegrees(angleInRadians float64) float64 {
 	return (angleInRadians * 180) / math.Pi
 }
 
-func generateCoordinate(geoPoint Coordinate, distance float64, segment float64) []float64 {
+func generateCoordinate(geoPoint Coordinate, distance float64, sector float64) []float64 {
 	lat1 := toRadians(geoPoint.Lat)
 	lon1 := toRadians(geoPoint.Lon)
 
@@ -118,11 +137,11 @@ func generateCoordinate(geoPoint Coordinate, distance float64, segment float64) 
 	dByR := distance / radiusOfEarth
 
 	lat := math.Asin(
-		math.Sin(lat1)*math.Cos(dByR) + math.Cos(lat1)*math.Sin(dByR)*math.Cos(segment),
+		math.Sin(lat1)*math.Cos(dByR) + math.Cos(lat1)*math.Sin(dByR)*math.Cos(sector),
 	)
 
 	lon := lon1 + math.Atan2(
-		math.Sin(segment)*math.Sin(dByR)*math.Cos(lat1),
+		math.Sin(sector)*math.Sin(dByR)*math.Cos(lat1),
 		math.Cos(dByR)-math.Sin(lat1)*math.Sin(lat),
 	)
 
