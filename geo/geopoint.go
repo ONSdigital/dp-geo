@@ -10,27 +10,22 @@ import (
 var polygon = "Polygon"
 
 const (
-	twoPi         float64 = 2 * math.Pi
-	radiusOfEarth float64 = 6378137 //(in metres defined by wgs84)
+	twoPi                  float64 = 2 * math.Pi
+	radiusOfEarth          float64 = 6378137 //(in metres defined by wgs84)
+	defaultConcurrency             = 10      // limit number of go routines to not put too much on heap
+	defaultMaximumSegments         = 180
 )
 
-type maxSegments struct {
-	mu       sync.Mutex
-	segments int
+// Config object to define geo configurations
+type Config struct {
+	defaultConcurrencyLimit int
+	defaultMaxSegments      int
 }
 
-var defaultMaxSegments = maxSegments{segments: 180}
-
-// GeoStructure describes the shape of the geographical location
-type GeoStructure struct {
-	Type        string
-	Coordinates [][]float64
-}
-
-// Coordinate describes the position of a point
-type Coordinate struct {
-	Lat float64
-	Lon float64
+// Default geo configuration for methods on config receiver
+var DefaultConfig = &Config{
+	defaultConcurrencyLimit: defaultConcurrency,
+	defaultMaxSegments:      defaultMaximumSegments,
 }
 
 // List of errors
@@ -45,8 +40,31 @@ func ErrTooManySegments(maximumSegments int) error {
 	return fmt.Errorf("too many segments, this should be less than %d", maximumSegments)
 }
 
+// GeoStructure describes the shape of the geographical location
+type GeoStructure struct {
+	Type        string
+	Coordinates [][]float64
+}
+
+// Coordinate describes the position of a point
+type Coordinate struct {
+	Lat float64
+	Lon float64
+}
+
+// New instantiates a geo object with defined values to be used by geo methods
+// e.g. concurrency limit and maximum number of segments when generating a circle from a point
+func New(concurrencyLimit, maximumSegments int) (geo *Config) {
+	geo = DefaultConfig
+
+	geo.defaultConcurrencyLimit = concurrencyLimit
+	geo.defaultMaxSegments = maximumSegments
+
+	return
+}
+
 // NewGeoPoint creates a coordinate object
-func NewGeoPoint(lat, lon float64) (*Coordinate, error) {
+func CreateGeoPoint(lat, lon float64) (*Coordinate, error) {
 	geoPoint := &Coordinate{Lat: lat, Lon: lon}
 
 	if err := geoPoint.validate(); err != nil {
@@ -57,10 +75,10 @@ func NewGeoPoint(lat, lon float64) (*Coordinate, error) {
 }
 
 // CircleToPolygon generates a bounding box (circle) from a single geopoint using radius (in metres) and the number of segments
-func (geoPoint *Coordinate) CircleToPolygon(radius float64, segments int) (*GeoStructure, error) {
+func (geo *Config) CircleToPolygon(geoPoint Coordinate, radius float64, segments int) (*GeoStructure, error) {
 
 	// validate input
-	if err := validateInput(geoPoint, radius, segments); err != nil {
+	if err := geo.validateInput(&geoPoint, radius, segments); err != nil {
 		return nil, err
 	}
 
@@ -70,8 +88,7 @@ func (geoPoint *Coordinate) CircleToPolygon(radius float64, segments int) (*GeoS
 
 	coordinates := make([][]float64, segments)
 
-	var concurrent = 100 // limit number of go routines to not put too much on heap
-	var semaphoreChan = make(chan struct{}, concurrent)
+	var semaphoreChan = make(chan struct{}, geo.defaultConcurrencyLimit)
 
 	var wg sync.WaitGroup
 
@@ -88,7 +105,7 @@ func (geoPoint *Coordinate) CircleToPolygon(radius float64, segments int) (*GeoS
 			}()
 
 			sector := (twoPi * float64(-i)) / float64(segments)
-			coordinate := generateCoordinate(*geoPoint, radius, sector)
+			coordinate := generateCoordinate(geoPoint, radius, sector)
 			coordinates[i] = coordinate
 		}(i)
 	}
@@ -101,24 +118,6 @@ func (geoPoint *Coordinate) CircleToPolygon(radius float64, segments int) (*GeoS
 	shape.Coordinates = coordinates
 
 	return shape, nil
-}
-
-// SetMaximumSegments sets the default maximum number of segments used to
-// calculate the number of geo points in Polygon
-func SetMaximumSegments(maxSegments int) {
-	defaultMaxSegments.mu.Lock()
-	defaultMaxSegments.segments = maxSegments
-	defaultMaxSegments.mu.Unlock()
-}
-
-// SetMaximumSegments sets the default maximum number of segments used to
-// calculate the number of geo points in Polygon
-func GetMaximumSegments() (maxSegments int) {
-	defaultMaxSegments.mu.Lock()
-	maxSegments = defaultMaxSegments.segments
-	defaultMaxSegments.mu.Unlock()
-
-	return
 }
 
 func toRadians(angleInDegrees float64) float64 {
@@ -148,13 +147,13 @@ func generateCoordinate(geoPoint Coordinate, distance float64, sector float64) [
 	return []float64{toDegrees(lon), toDegrees(lat)}
 }
 
-func validateInput(geoPoint *Coordinate, radius float64, segments int) error {
+func (geo *Config) validateInput(geoPoint *Coordinate, radius float64, segments int) error {
 
 	if err := validateRadius(radius); err != nil {
 		return err
 	}
 
-	if err := validateSegments(segments); err != nil {
+	if err := validateSegments(geo.defaultMaxSegments, segments); err != nil {
 		return err
 	}
 
@@ -173,8 +172,7 @@ func validateRadius(radius float64) error {
 	return nil
 }
 
-func validateSegments(segments int) error {
-	maxSegments := GetMaximumSegments()
+func validateSegments(maxSegments, segments int) error {
 	if segments > maxSegments {
 		return ErrTooManySegments(maxSegments)
 	}
