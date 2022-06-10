@@ -88,7 +88,12 @@ func (geo *Config) CircleToPolygon(geoPoint Coordinate, radius float64, segments
 
 	coordinates := make([][]float64, segments)
 
-	var semaphoreChan = make(chan struct{}, geo.defaultConcurrencyLimit)
+	concurrencyLimit := segments
+	if segments > geo.defaultConcurrencyLimit {
+		concurrencyLimit = geo.defaultConcurrencyLimit
+	}
+
+	var semaphoreChan = make(chan struct{}, concurrencyLimit)
 
 	var wg sync.WaitGroup
 
@@ -99,14 +104,12 @@ func (geo *Config) CircleToPolygon(geoPoint Coordinate, radius float64, segments
 		wg.Add(1)
 
 		go func(i int) {
-			defer func() {
-				<-semaphoreChan // read to release a slot
-				wg.Done()
-			}()
-
 			sector := (twoPi * float64(-i)) / float64(segments)
 			coordinate := generateCoordinate(geoPoint, radius, sector)
 			coordinates[i] = coordinate
+
+			<-semaphoreChan // read to release a slot
+			wg.Done()
 		}(i)
 	}
 
