@@ -6,6 +6,44 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func TestValidateRadius(t *testing.T) {
+	Convey("Given a radius that is larger than Earths radius in metres", t, func() {
+		radius := radiusOfEarth + 1
+		Convey("When calling validateRadius", func() {
+
+			err := validateRadius(radius)
+
+			Convey("Then no error is returned", func() {
+				So(err, ShouldResemble, ErrRadiusLargerThanEarth)
+			})
+		})
+	})
+
+	Convey("Given a radius that is smaller than Earths radius in metres", t, func() {
+		radius := radiusOfEarth - 1
+		Convey("When calling validateRadius", func() {
+
+			err := validateRadius(radius)
+
+			Convey("Then no error is returned", func() {
+				So(err, ShouldBeNil)
+			})
+		})
+	})
+
+	Convey("Given a radius that is equal to the Earths radius in metres", t, func() {
+		radius := radiusOfEarth
+		Convey("When calling validateRadius", func() {
+
+			err := validateRadius(radius)
+
+			Convey("Then no error is returned", func() {
+				So(err, ShouldBeNil)
+			})
+		})
+	})
+}
+
 func TestValidateSegments(t *testing.T) {
 	maxSegments := 180
 	Convey("Given segments are within range of allowed values", t, func() {
