@@ -88,12 +88,7 @@ func (geo *Config) CircleToPolygon(geoPoint Coordinate, radius float64, segments
 
 	coordinates := make([][]float64, segments)
 
-	concurrencyLimit := segments
-	if segments > geo.defaultConcurrencyLimit {
-		concurrencyLimit = geo.defaultConcurrencyLimit
-	}
-
-	var semaphoreChan = make(chan struct{}, concurrencyLimit)
+	var semaphoreChan = make(chan struct{}, toLowest(segments, geo.defaultConcurrencyLimit))
 
 	var wg sync.WaitGroup
 
@@ -121,6 +116,15 @@ func (geo *Config) CircleToPolygon(geoPoint Coordinate, radius float64, segments
 	shape.Coordinates = coordinates
 
 	return shape, nil
+}
+
+// toLowest takes in 2 values and returns the lowest value
+func toLowest(a, b int) int {
+	if a < b {
+		return a
+	}
+
+	return b
 }
 
 func toRadians(angleInDegrees float64) float64 {
