@@ -157,26 +157,6 @@ func (geo *Config) validateInput(geoPoint *Coordinate, radius float64, segments 
 	return nil
 }
 
-func validateRadius(radius float64) error {
-	if radius > radiusOfEarth {
-		return ErrRadiusLargerThanEarth
-	}
-
-	return nil
-}
-
-func validateSegments(maxSegments, segments int) error {
-	if segments > maxSegments {
-		return ErrTooManySegments(maxSegments)
-	}
-
-	if segments < 3 {
-		return ErrTooFewSegments
-	}
-
-	return nil
-}
-
 func (geoPoint *Coordinate) validate() error {
 	if geoPoint.Lon > 180 || geoPoint.Lon < -180 {
 		return ErrInvalidLongitudinalPoint
