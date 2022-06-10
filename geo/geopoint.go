@@ -5,19 +5,6 @@ import (
 	"sync"
 )
 
-var polygon = "Polygon"
-
-const (
-	twoPi         float64 = 2 * math.Pi
-	radiusOfEarth float64 = 6378137 //(in metres defined by wgs84)
-)
-
-// GeoStructure describes the shape of the geographical location
-type GeoStructure struct {
-	Type        string
-	Coordinates [][]float64
-}
-
 // Coordinate describes the position of a point
 type Coordinate struct {
 	Lat float64
@@ -77,23 +64,6 @@ func (geo *Config) CircleToPolygon(geoPoint Coordinate, radius float64, segments
 	shape.Coordinates = coordinates
 
 	return shape, nil
-}
-
-// toLowest takes in 2 values and returns the lowest value
-func toLowest(a, b int) int {
-	if a < b {
-		return a
-	}
-
-	return b
-}
-
-func toRadians(angleInDegrees float64) float64 {
-	return (angleInDegrees * math.Pi) / 180
-}
-
-func toDegrees(angleInRadians float64) float64 {
-	return (angleInRadians * 180) / math.Pi
 }
 
 func generateCoordinate(geoPoint Coordinate, distance float64, sector float64) []float64 {
