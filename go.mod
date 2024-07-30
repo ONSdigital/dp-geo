@@ -1,3 +1,4 @@
+// Deprecated: as part of the Areas Service decommissioning process
 module dp-geo
 
 go 1.18

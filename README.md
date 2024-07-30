@@ -2,6 +2,12 @@
 
 Library for handling geographical areas, e.g. calculating bounding box from long/lat point
 
+---
+
+:warning: This repository will be archived in August 2024 as it is no longer in development. :warning:
+
+---
+
 ### geo package
 
 Create a bounding box (circle) using the CircleToPolygon method on GeoPoint object. The Geo point object represents a longitude and latitude coordinate on Earth.
@@ -61,7 +67,7 @@ Create Geo structure object based on new geo point above
 
 The bounding area/geo structure object created abides by [WKT format](https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry) for geometric shapes.
 
-Below is an example of the entire code structure
+Below is an example of the entire code structure:
 
 ```Go
 import "github.com/ONSdigital/dp-geo/geo"
